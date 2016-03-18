@@ -6,6 +6,7 @@ var ethWallet = require('ethereumjs-wallet')
 var ethICAP = require('ethereumjs-icap')
 var ethUtil = require('ethereumjs-util')
 var ethTx = require('ethereumjs-tx')
+var RLP = require('rlp')
 
 var yargs = require('yargs')
   .usage('Usage: $0 [command]')
@@ -39,6 +40,7 @@ var yargs = require('yargs')
   .command('keyConvert', 'Convert a key to V3 keystore format')
   .command('keyDetails', 'Print key details')
   .command('addressDetails <address>', 'Print details about an address')
+  .command('rlpInspect <rlp>', 'Inspect RLP encoded data')
   .strict()
   .version()
   .showHelpOnFail(false, 'Specify --help for available options')
@@ -220,5 +222,32 @@ switch (command) {
     }
 
     printAddressDetails(address)
+    break
+
+  case 'rlpInspect':
+    function toReadable (val) {
+      var len = val.length
+
+      if (len === 20) {
+        return 'possibly an address'
+      }
+
+      if (len <= 32) {
+        return new ethUtil.BN(val).toString(10)
+      }
+    }
+
+    var rlp = RLP.decode(argv.rlp)
+
+    console.log('The RLP encoded input consists of the following fields:')
+    for (var i = 0; i < rlp.length; i++) {
+      var item = rlp[i]
+      var detail = toReadable(item)
+      if (detail) {
+        console.log('  ' + ethUtil.bufferToHex(item) + ' (' + detail + ')')
+      } else {
+        console.log('  ' + ethUtil.bufferToHex(item))
+      }
+    }
     break
 }

@@ -54,6 +54,7 @@ var yargs = require('yargs')
   .command('bip32Details <path>', 'Print key details for a given path')
   .command('addressDetails <address>', 'Print details about an address')
   .command('unitConvert <value> <from> <to>', 'Convert between Ethereum units')
+  .command('keccak <data>', 'Create Keccak hash of the supplied data')
   .strict()
   .version()
   .showHelpOnFail(false, 'Specify --help for available options')
@@ -386,5 +387,16 @@ switch (command) {
 
     console.log('Path: ' + argv.path)
     printWalletDetails(wallet)
+    break
+
+  case 'keccak':
+    var data
+    try {
+      data = fs.readFileSync(argv.data)
+    } catch (e) {
+      data = ethUtil.toBuffer(argv.data)
+    }
+    console.log('Input data: ' + ethUtil.bufferToHex(data))
+    console.log('Data hash: ' + ethUtil.sha3(data).toString('hex'))
     break
 }

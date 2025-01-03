@@ -11,6 +11,7 @@ var fakeEthTx = require('ethereumjs-tx/fake')
 var BN = ethUtil.BN
 var ethHDKey = require('ethereumjs-wallet/hdkey')
 var bip39 = require('bip39')
+var RLP = require('rlp')
 
 var yargs = require('yargs')
   .usage('Usage: $0 [command]')
@@ -51,9 +52,12 @@ var yargs = require('yargs')
   .command('keyGenerate [format] [icapdirect]', 'Generate new key')
   .command('keyConvert', 'Convert a key to V3 keystore format')
   .command('keyDetails', 'Print key details')
+  .command('vanityKeyGenerate <pattern>', 'Generate vanity key')
   .command('bip32Details <path>', 'Print key details for a given path')
   .command('addressDetails <address>', 'Print details about an address')
   .command('unitConvert <value> <from> <to>', 'Convert between Ethereum units')
+  .command('rlpInspect <rlp>', 'Inspect RLP encoded data')
+  .command('keccak256 <data>', 'Create Keccak-256 hash of the supplied data')
   .strict()
   .version()
   .showHelpOnFail(false, 'Specify --help for available options')
@@ -131,7 +135,7 @@ function saveWalletV3 (wallet) {
   var v3 = wallet.toV3String(password)
   var filename = wallet.getV3Filename()
 
-  fs.writeFileSync(filename, new Buffer(v3))
+  fs.writeFileSync(filename, Buffer.from(v3))
   console.log('Key saved as ' + filename)
 }
 
@@ -151,7 +155,7 @@ function printSigDetails (hash, r, s, v) {
   console.log('Message hash (keccak): ' + hash)
   var pubKey = ethUtil.ecrecover(
     ethUtil.toBuffer(hash),
-    ethUtil.toBuffer(parseInt(v)),
+    v,
     ethUtil.toBuffer(r),
     ethUtil.toBuffer(s)
   )
@@ -184,7 +188,12 @@ var wallet
 
 switch (command) {
   case 'keyGenerate':
-    wallet = ethWallet.generate(argv.icapdirect === 'true')
+  case 'vanityKeyGenerate':
+    if (command === 'vanityKeyGenerate') {
+      wallet = ethWallet.generateVanityAddress(argv.pattern)
+    } else {
+      wallet = ethWallet.generate(argv.icapdirect === 'true')
+    }
 
     switch (argv.format) {
       case 'v3':
@@ -224,7 +233,7 @@ switch (command) {
 
     console.log('Input message: ' + ethUtil.bufferToHex(msg))
 
-    msg = ethUtil.sha3(msg)
+    msg = ethUtil.keccak256(msg)
     console.log('Message hash (Keccak): ' + ethUtil.bufferToHex(msg))
 
     var sig = ethUtil.ecsign(msg, wallet.getPrivateKey())
@@ -239,7 +248,7 @@ switch (command) {
   case 'verifySig':
     var sig = ethUtil.toBuffer(argv.sig)
 
-    var v = sig[64]
+    var v = parseInt(sig[64])
     // support both versions of `eth_sign` responses
     if (v < 27) {
       v += 27
@@ -249,7 +258,7 @@ switch (command) {
     break
 
   case 'verifySigParams':
-    printSigDetails(argv.hash, argv.r, argv.s, argv.v)
+    printSigDetails(argv.hash, argv.r, argv.s, parseInt(argv.v))
     break
 
   case 'createTx':
@@ -386,5 +395,43 @@ switch (command) {
 
     console.log('Path: ' + argv.path)
     printWalletDetails(wallet)
+    break
+
+  case 'rlpInspect':
+    function toReadable (val) {
+      var len = val.length
+
+      if (len === 20) {
+        return 'possibly an address'
+      }
+
+      if (len <= 32) {
+        return new ethUtil.BN(val).toString(10)
+      }
+    }
+
+    var rlp = RLP.decode(argv.rlp)
+
+    console.log('The RLP encoded input consists of the following fields:')
+    for (var i = 0; i < rlp.length; i++) {
+      var item = rlp[i]
+      var detail = toReadable(item)
+      if (detail) {
+        console.log('  ' + ethUtil.bufferToHex(item) + ' (' + detail + ')')
+      } else {
+        console.log('  ' + ethUtil.bufferToHex(item))
+      }
+    }
+    break
+
+  case 'keccak256':
+    var data
+    try {
+      data = fs.readFileSync(argv.data)
+    } catch (e) {
+      data = ethUtil.toBuffer(argv.data)
+    }
+    console.log('Input data: ' + ethUtil.bufferToHex(data))
+    console.log('Data hash: ' + ethUtil.keccak256(data).toString('hex'))
     break
 }

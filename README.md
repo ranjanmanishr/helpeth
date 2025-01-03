@@ -1,5 +1,12 @@
 # helpethsdfsfsfsdf
 
+> [!WARNING]  
+> This library has been deprecated.
+>
+> Continued usage is not recommended for security reasons.
+
+---
+
 [![NPM Package](https://img.shields.io/npm/v/helpeth.svg?style=flat-square)](https://www.npmjs.org/package/helpeth)
 [![Gitter](https://img.shields.io/gitter/room/ethereum/ethereumjs-lib.svg?style=flat-square)](https://gitter.im/ethereum/ethereumjs-lib)
 
